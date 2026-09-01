@@ -1,0 +1,358 @@
+---
+/**
+ * WebMCP agent tool surface (W3C Web Model Context draft).
+ *
+ * Registers site tools on document.modelContext so in-browser agents
+ * (ChatGPT desktop browser since Aug 2026, Chrome behind flag) can call
+ * structured actions instead of scraping the DOM. Feature-detected: in
+ * browsers without an agent this script only exposes the inspectable
+ * tool list on window.__hzWebMcpTools and does nothing else.
+ *
+ * Tool surface (deliberately small, one write action):
+ *   - get_brand_agent_success_score  read   /en/dax40-index.json
+ *   - search_insights                read   /en/insights.json
+ *   - check_agent_readiness          read   netlify/functions/agent-readiness-probe
+ *   - request_snapshot               write  Netlify form "snapshot"
+ *
+ * Every successful execute fires one fire-and-forget count ping to
+ * netlify/functions/webmcp-telemetry ({tool} only — no inputs, no identity).
+ * Human-readable documentation of this surface: /en/agents.
+ *
+ * The write tool reuses the exact submit path of SectionSnapshotCta.astro
+ * (same form-name, same declared fields, POST to the current page path,
+ * never "/" because the root 301 would drop the POST body). Attribution
+ * fields mark the lead as agent-submitted (referrer/utm "webmcp").
+ */
+---
+<script>
+  type ToolResult = Record<string, unknown>;
+
+  interface HzTool {
+    name: string;
+    description: string;
+    inputSchema: Record<string, unknown>;
+    annotations?: { readOnlyHint?: boolean };
+    execute: (input: Record<string, unknown>) => Promise<ToolResult | string>;
+  }
+
+  const SNAPSHOT_FORM_NAME = "snapshot";
+
+  const norm = (s: unknown) => String(s ?? "").trim().toLowerCase();
+
+  async function fetchJson(path: string): Promise<Record<string, unknown>> {
+    const res = await fetch(path, { headers: { accept: "application/json" } });
+    if (!res.ok) throw new Error(`Could not load ${path} (HTTP ${res.status})`);
+    return res.json();
+  }
+
+  /** English string from bilingual {en, de} fields (agents read the EN surface). */
+  const en = (v: unknown): string =>
+    typeof v === "string" ? v : String((v as Record<string, unknown>)?.en ?? "");
+
+  const tools: HzTool[] = [
+    {
+      name: "get_brand_agent_success_score",
+      annotations: { readOnlyHint: true },
+      description:
+        "Look up a DAX 40 brand in the Hyperize Agent Success Index. Returns whether the brand is scored, its Agent Success Score (composite plus the AI Visibility and AI Usability axes) where published, the measured bottleneck, and the link to the full BrandScore page. Data source: the public index at hyperize.ai/en/dax40-index.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          brand: {
+            type: "string",
+            description:
+              "Brand name, legal entity, or DAX ticker to look up, e.g. 'Allianz', 'adidas AG', 'BMW'. Partial names match.",
+          },
+        },
+        required: ["brand"],
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true },
+      execute: async (input) => {
+        const q = norm(input.brand);
+        if (!q) throw new Error("Provide a brand name to look up.");
+        const data = await fetchJson("/en/dax40-index.json");
+
+        type BrandRec = Record<string, any>;
+        const buckets: Array<[string, BrandRec[]]> = [
+          ["scored", (data.pilotBrands as BrandRec[]) ?? []],
+          ["scored_marketplace", (data.marketplaceBrands as BrandRec[]) ?? []],
+          ["in_measurement", (data.inMeasurementBrands as BrandRec[]) ?? []],
+          ["pending", (data.pendingBrands as BrandRec[]) ?? []],
+          ["excluded", (data.excludedBrands as BrandRec[]) ?? []],
+        ];
+
+        const matches: ToolResult[] = [];
+        for (const [bucket, list] of buckets) {
+          for (const b of list) {
+            const hay = [b.name, b.legalEntity, b.id, b.daxTicker].map(norm);
+            if (!hay.some((h) => h && (h.includes(q) || q.includes(h)))) continue;
+            const m: ToolResult = {
+              brand: b.name,
+              sector: b.sectorLabel ?? b.sector,
+              status: bucket,
+              wave: b.wave,
+            };
+            if (b.ars?.status === "live") {
+              m.agentSuccessScore = {
+                composite0to10: b.ars.scale10,
+                aiVisibility0to100: b.ars.aiVisibility,
+                aiUsability0to100: b.ars.aiUsability?.score,
+                formula: data.methodology?.formula,
+              };
+            }
+            if (b.bottleneckSentence) m.bottleneck = en(b.bottleneckSentence);
+            if (b.reason) m.note = b.reason;
+            if (b.referencePageUrl) m.brandScorePage = b.referencePageUrl;
+            matches.push(m);
+          }
+        }
+
+        if (!matches.length) {
+          const available = buckets
+            .flatMap(([, list]) => list)
+            .map((b: BrandRec) => b.name)
+            .sort();
+          return {
+            found: false,
+            message: `No DAX 40 brand matched "${input.brand}". The index covers the DAX 40 universe only. For any other website, use the request_snapshot tool to get it scored.`,
+            availableBrands: available,
+          };
+        }
+        return {
+          found: true,
+          matches,
+          indexPage: data.url,
+          asOf: data.dateModified,
+        };
+      },
+    },
+    {
+      name: "search_insights",
+      annotations: { readOnlyHint: true },
+      description:
+        "Search Hyperize Insights: original research and field tests on how AI agents evaluate, recommend, and transact with enterprise brands (agent commerce, GEO, agent readiness, DAX 40 measurements). Returns matching articles with links. Call with an empty query to get the latest articles.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description:
+              "Search terms matched against article titles and subtitles, e.g. 'agent checkout' or 'Grok'. Empty returns the latest articles.",
+          },
+        },
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true },
+      execute: async (input) => {
+        const data = await fetchJson("/en/insights.json");
+        const articles = ((data.articles as Record<string, any>[]) ?? [])
+          .slice()
+          .sort((a, b) => String(b.datePublished).localeCompare(String(a.datePublished)));
+        const terms = norm(input.query).split(/\s+/).filter(Boolean);
+        const hits = terms.length
+          ? articles.filter((a) => {
+              const hay = norm([a.title, a.subtitle, a.category].join(" "));
+              return terms.every((t) => hay.includes(t));
+            })
+          : articles.slice(0, 5);
+        return {
+          totalArticles: articles.length,
+          matches: hits.slice(0, 10).map((a) => ({
+            title: a.title,
+            subtitle: a.subtitle,
+            category: a.category,
+            datePublished: a.datePublished,
+            url: a.url,
+          })),
+          hub: data.url,
+        };
+      },
+    },
+    {
+      name: "check_agent_readiness",
+      annotations: { readOnlyHint: true },
+      description:
+        "Run an instant five-check surface probe on ANY website: is the front door reachable for agents (or does a bot wall answer), does robots.txt allow AI assistant crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended), does an llms.txt site guide exist, is schema.org JSON-LD present, and does the homepage serve a Markdown twin. Returns pass/fail per check with evidence, plus how the result compares to Hyperize's measured DAX 40 index. This is a surface probe in seconds, not the measured Agent Success Score; the measured score comes from the free Snapshot (request_snapshot tool).",
+      inputSchema: {
+        type: "object",
+        properties: {
+          url: {
+            type: "string",
+            description: "The website to check, e.g. https://example.com or just example.com",
+          },
+        },
+        required: ["url"],
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true },
+      execute: async (input) => {
+        const url = String(input.url ?? "").trim();
+        if (!url) throw new Error("Provide the website URL to check.");
+        const res = await fetch(
+          `/.netlify/functions/agent-readiness-probe?url=${encodeURIComponent(url)}`,
+          { headers: { accept: "application/json" } }
+        );
+        const probe = await res.json().catch(() => null);
+        if (!res.ok || !probe)
+          throw new Error(
+            `Probe failed${probe?.error ? `: ${probe.error}` : ` (HTTP ${res.status})`}.`
+          );
+
+        // Context from the measured index: how many scored DAX 40 brands fail
+        // the same front-door test (all four agent classes blocked). Derived
+        // live from the published data, never hardcoded.
+        let benchmark: string | undefined;
+        try {
+          const idx = await fetchJson("/en/dax40-index.json");
+          const scored = [
+            ...((idx.pilotBrands as Record<string, any>[]) ?? []),
+            ...((idx.marketplaceBrands as Record<string, any>[]) ?? []),
+          ].filter((b) => b.ars?.status === "live");
+          const hardBlocked = scored.filter(
+            (b) => (b.ars?.aiUsability?.blockedClasses ?? []).length >= 4
+          ).length;
+          if (scored.length) {
+            benchmark = `For scale: of the ${scored.length} DAX 40 brands in the live Hyperize index, ${hardBlocked} fail the same front-door test (every measured agent class blocked). Details: https://www.hyperize.ai/en/dax40-index`;
+          }
+        } catch {
+          /* benchmark is additive; the probe result stands on its own */
+        }
+
+        return benchmark ? { ...probe, dax40Context: benchmark } : probe;
+      },
+    },
+    {
+      name: "request_snapshot",
+      description:
+        "Request a free Hyperize Agent Success Snapshot for a brand website. Hyperize tests how AI agents find, evaluate, and transact with that website, scores it on the Agent Success Score, benchmarks it against the DAX 40, and delivers the report by email within 48 hours. Free, no commitment, no sales call. Requires the user's work email: confirm the website URL and the email address with the user before calling this tool.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          url: {
+            type: "string",
+            description: "The brand website URL to test, e.g. https://example.com",
+          },
+          email: {
+            type: "string",
+            description:
+              "The user's work email address. The finished report is delivered there.",
+          },
+        },
+        required: ["url", "email"],
+        additionalProperties: false,
+      },
+      execute: async (input) => {
+        const url = String(input.url ?? "").trim();
+        const email = String(input.email ?? "").trim();
+        if (!url) throw new Error("Provide the website URL to test.");
+        if (!email || !email.includes("@"))
+          throw new Error("Provide a valid work email address for report delivery.");
+
+        // Lead-quality signal, same base-label comparison as the visual form
+        // (prioritization only, never a gate).
+        let domainMatch = "";
+        try {
+          const host = new URL(url.includes("://") ? url : `https://${url}`).hostname
+            .toLowerCase()
+            .replace(/^www\./, "");
+          const base = (h: string) => h.split(".").slice(-2)[0] || h;
+          domainMatch =
+            base(host) === base(email.split("@").pop()!.toLowerCase()) ? "yes" : "no";
+        } catch {
+          /* malformed URL: leave domain_match empty, triage handles it */
+        }
+
+        const payload = new URLSearchParams({
+          "form-name": SNAPSHOT_FORM_NAME,
+          url,
+          email,
+          referrer: "webmcp",
+          landing: location.pathname,
+          utm: "source=webmcp",
+          domain_match: domainMatch,
+        }).toString();
+
+        // POST to the current page path, never "/": the root 301 would drop
+        // the POST body (see SectionSnapshotCta.astro for the full trap).
+        const res = await fetch(location.pathname || "/en", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: payload,
+        });
+        if (!res.ok)
+          throw new Error(
+            `Snapshot request failed (HTTP ${res.status}). Fallback: email hello@hyperize.ai with the URL.`
+          );
+        return {
+          status: "submitted",
+          delivery: `Report will be emailed to ${email}`,
+          timeframe: "within 48 hours",
+          scope:
+            "Agent Success Score across AI Visibility and AI Usability, benchmarked on the DAX 40",
+          terms: "Free, no commitment, no sales call.",
+        };
+      },
+    },
+  ];
+
+  // Public usage counter (the "agent guestbook" on /en/agents): one ping per
+  // successful execute, tool name only. Fire-and-forget, never blocks or
+  // fails the tool call itself.
+  const countCall = (tool: string) => {
+    try {
+      fetch("/.netlify/functions/webmcp-telemetry", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tool }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch {
+      /* counting is optional by design */
+    }
+  };
+
+  const withCounter = (tool: HzTool): HzTool => ({
+    ...tool,
+    execute: async (input) => {
+      const result = await tool.execute(input);
+      countCall(tool.name);
+      return result;
+    },
+  });
+
+  const surface = tools.map(withCounter);
+
+  // Inspectable surface for humans and tests, independent of agent support.
+  (window as any).__hzWebMcpTools = surface;
+
+  // Chrome's WebMCP prototype expects execute to RETURN A STRING
+  // (imperative-api doc). Native clients get a wrapper returning JSON
+  // text; the inspectable surface keeps the raw object shape.
+  const nativeShape = (tool: HzTool): HzTool => ({
+    ...tool,
+    execute: async (input) => {
+      const r = await tool.execute(input);
+      if (typeof r === "string") return r;
+      try {
+        return JSON.stringify(r);
+      } catch {
+        return String(r);
+      }
+    },
+  });
+
+  const mc =
+    (document as any).modelContext ?? (navigator as any).modelContext;
+  if (mc && typeof mc.registerTool === "function") {
+    (async () => {
+      for (const tool of surface) {
+        try {
+          await mc.registerTool(nativeShape(tool));
+        } catch (error) {
+          console.warn(`[webmcp] registerTool rejected: ${tool.name}`, error);
+        }
+      }
+    })();
+  }
+</script>

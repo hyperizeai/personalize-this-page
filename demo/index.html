@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Personalize this page — standalone demo</title>
+<style>
+  :root { --fg: #111; --muted: #666; --border: #d8d8d8; --chip: #00c7f0; }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--fg); background: #fff; line-height: 1.5; }
+  main { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+  section { border-top: 1px dashed var(--border); padding: 56px 0; }
+  section:first-child { border-top: 0; padding-top: 72px; }
+  h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.08; letter-spacing: -0.03em; font-weight: 500; max-width: 22ch; }
+  h2 { font-size: clamp(24px, 4vw, 34px); letter-spacing: -0.02em; font-weight: 500; margin-bottom: 12px; }
+  h3 { font-size: 20px; font-weight: 500; margin-bottom: 8px; }
+  p { color: #333; max-width: 62ch; }
+  .demo-note { background: #f5f5f5; border: 1px solid var(--border); padding: 10px 14px; font-size: 13px; color: var(--muted); margin: 16px 0 0; }
+  .chip { display: inline-block; background: rgba(0,199,240,.1); color: #0a91ad; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; padding: 4px 8px; margin-bottom: 16px; }
+  .lede { font-size: 18px; margin-top: 16px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0; border: 1px solid var(--border); margin-top: 24px; }
+  .cards > div { padding: 24px; border-right: 1px solid var(--border); }
+  .cards > div:last-child { border-right: 0; }
+  .text-center { margin-bottom: 16px; }
+  form { display: grid; gap: 10px; max-width: 420px; margin-top: 16px; }
+  input { padding: 10px 12px; border: 1px solid var(--border); font-size: 15px; }
+  details { border-bottom: 1px dashed var(--border); padding: 14px 0; }
+  summary { cursor: pointer; font-weight: 500; }
+  .faq-content { padding-top: 8px; color: #333; }
+  footer { border-top: 1px dashed var(--border); padding: 32px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <section>
+    <span class="chip"><span>Behind every AI agent is a human who asked.</span></span>
+    <h1>Be the brand AI agents use.</h1>
+    <p class="lede">Agents find, recommend, and transact. Hyperize makes sure they pick you.</p>
+    <p class="demo-note">Standalone demo of the WebMCP personalization layer running on
+      <a href="https://www.hyperize.ai/en">www.hyperize.ai</a>. Same module, minimal page.
+      Open this file over HTTP (not file://), enable WebMCP in your browser, and ask your agent:
+      "Personalize this page for me using its WebMCP tools."</p>
+  </section>
+
+  <section>
+    <div class="text-center">
+      <h2>A system, not a service.</h2>
+      <p>Two outcomes: AI visibility and AI usability. We measure where agents find you, engineer what they cite, and make tools they can call.</p>
+    </div>
+    <div class="cards">
+      <div><h3>Be found.</h3><p>Machine-readable presence across the agent web, measured where retrieval actually happens.</p></div>
+      <div><h3>Be recommended.</h3><p>Evidence pages agents can verify and cite, engineered so the shortlist has your name on it.</p></div>
+      <div><h3>Do business.</h3><p>Callable tools, not contact forms. The agent completes the task with you on the other end.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Rebuild your brand for agents.</h2>
+    <p>Software is shedding its interface. Brands are next. The interface your customer used yesterday is not the surface your agent uses tomorrow.</p>
+  </section>
+
+  <section id="snapshot">
+    <h2>Free snapshot.</h2>
+    <p>One URL. Two gates. One score. 48 hours.</p>
+    <form onsubmit="return false">
+      <input id="snapshot-url" type="url" placeholder="https://your-site.com" />
+      <input id="snapshot-email" type="email" placeholder="you@company.com" />
+    </form>
+  </section>
+
+  <section id="faq">
+    <h2>Before you reach out.</h2>
+    <details open><summary><span>How is this different from SEO?</span></summary><div class="faq-content">SEO makes you rank. We make you usable. Agents need to verify your claims and complete a transaction; most brands pass the first test and fail the other two.</div></details>
+    <details><summary><span>Can you guarantee AI agents will recommend us?</span></summary><div class="faq-content">No, and anyone who promises that is selling something that does not exist. We make you the easiest to find, verify, and use.</div></details>
+    <details><summary><span>How do you measure results?</span></summary><div class="faq-content">Same fleet, same queries, new scores. Direct agent behavior, measured and compared.</div></details>
+  </section>
+
+  <section>
+    <h2>The agent is recommending. It should be you.</h2>
+    <p>Right now, an agent is researching your category. It will find someone. It will verify someone's claims. It will do business with someone.</p>
+    <p>The only question is whether that someone is you.</p>
+  </section>
+</main>
+<footer>Demo page for the WebMCP Challenge submission. Production: www.hyperize.ai</footer>
+<script type="module" src="../src/pitch-to-me.mjs"></script>
+</body>
+</html>
