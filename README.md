@@ -48,8 +48,8 @@ itself. No backend, no account, no data leaving the browser.
 
 ## What the human and the agent accomplish together
 
-The human brings intent ("I run a family campsite in the Allgäu; we need
-off-season bookings"). The agent brings that context to the page. The page
+The human brings intent ("I run sales at an industrial pump maker; engineers
+and procurement agents should shortlist us"). The agent brings that context to the page. The page
 brings truth: real product facts, real prices, real constraints, and refuses
 anything invented. The result is a third thing none of them could produce
 alone: the company's actual website, arguing its actual case, in the
@@ -59,8 +59,9 @@ collaboration at all times.
 
 ## How it improves the experience
 
-- A B2B homepage answers a campsite owner's real questions ("Does this
-  replace our website relaunch?") instead of generic vendor FAQs.
+- A generic homepage answers a pump maker's real questions ("What happens to
+  our configurator and catalog?") instead of generic vendor FAQs, and argues
+  in a shopper's terms for an outdoor apparel brand the next minute.
 - The conversion form arrives prefilled from the profile the agent already
   holds; the visitor only clicks.
 - Speed is engineered: three headline mints render in under a second (page
