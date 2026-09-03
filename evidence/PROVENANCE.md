@@ -67,6 +67,13 @@ real test with named assertions, a PASS/FAIL table and a non-zero exit on
 failure, driven by a `package.json` (`npm test` against the live site,
 `npm run test:demo` against the demo on a local static server).
 
+Both screenshots in this folder were retaken on 2026-09-04 from the live site
+in the same native Chrome run, with a fictional visitor profile (Ostwerk Pumps
+GmbH, industrial pumps, "get shortlisted by procurement agents"): all 29
+express fields accepted, 0 rejected. They are plain screenshots, with nothing
+drawn on top, and they replace the earlier pair that carried a real client's
+name and an illustrated tool-call overlay.
+
 ### Machine-readable commit trace
 
 The PR numbers in the table above point to a private repository, so
