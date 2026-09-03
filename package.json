@@ -1,0 +1,15 @@
+{
+  "name": "personalize-this-page",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "WebMCP personalization layer: the agent rewrites the page for its human, inside contracts the page enforces.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node tests/native-chrome-run.mjs https://www.hyperize.ai/en",
+    "test:demo": "node tests/native-chrome-run.mjs --demo"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

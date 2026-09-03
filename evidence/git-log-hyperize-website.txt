@@ -1,0 +1,8 @@
+41641fc 2026-09-01 01:50:39 +0200 WebMCP: native string returns, readOnlyHint, echo guard (#166)
+a9cc9d6 2026-09-01 01:35:29 +0200 Production-enable: Personalize this page live on www.hyperize.ai (#165)
+705e324 2026-09-01 01:05:47 +0200 p2m express: one-call write_all, instant mints, full-FAQ express set (#164)
+d99b62b 2026-08-31 14:53:00 +0200 Pitch it to me: WebMCP personalization layer on the EN homepage (flag-gated, production-inert) (#158)
+a09308a 2026-08-26 11:57:47 +0200 feat(webmcp): /en/agents docs page, check_agent_readiness probe, usage counter
+e4f07b9 2026-08-26 11:30:00 +0200 feat(webmcp): agent tool surface on document.modelContext
+6eb2d1b 2026-06-02 13:25:56 +0200 Protect /cockpit with Basic Auth (Netlify edge function)
+fbed5e4 2026-05-29 01:11:59 +0200 feat: EN go-live readiness — Netlify cutover, Wave-11 census, disclosure + legal disclaimer, GEO-review fixes

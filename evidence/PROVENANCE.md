@@ -35,3 +35,50 @@ The production repository is private (it carries unrelated commercial
 content). This public repository contains the complete source of the
 submitted layer; the table above is the dated commit evidence. Access to
 the private history can be granted to judges on request.
+
+## 2026-09-03/04: implementation assessment and repo corrections
+
+An internal implementation assessment
+(`website-build/docs/webmcp-implementation-assessment-2026-09-03.md`, private)
+re-checked the shipped layer on both client paths: over Chrome's native
+WebMCP API in real Chrome 152 with the testing flag, and as a script agent
+with an injected `document.modelContext`. Both paths ran start, write, brief
+and reset end to end, with 29 of 29 express fields accepted and a clean reset.
+
+The same assessment found two honesty gaps between the code and the words
+around it, and both were corrected in the README with this commit: the page
+enforces plain text, per-field word and character budgets and the em-dash ban,
+but it does not verify the fact rules (no invented customers, numbers, prices
+or guarantees), which are part of the writing contract handed to the agent;
+and every tool call sends the tool name, and only the name, to a public usage
+counter, so "nothing leaves the browser" now reads as the narrower claim it
+is: no profile and no written text leaves the browser. The receipt claim was
+narrowed the same way (it quotes the context used word for word and counts
+rewritten fields per section, it does not diff text per field), as was the
+`request_snapshot` confirmation claim (the tool description asks the agent to
+confirm URL and email with the user; the page cannot check that it happened).
+
+Repo changes in this commit: real demo video and Devpost links at the top of
+the README; `demo/index.html` publishes the six design tokens the module reads
+as HSL triplets, adds the header and hero entry points the module hooks into,
+and styles the injected nav button, so the receipt dialog, banner and skeleton
+shimmer render on the standalone page; `tests/native-chrome-run.mjs` became a
+real test with named assertions, a PASS/FAIL table and a non-zero exit on
+failure, driven by a `package.json` (`npm test` against the live site,
+`npm run test:demo` against the demo on a local static server).
+
+### Machine-readable commit trace
+
+The PR numbers in the table above point to a private repository, so
+[`git-log-hyperize-website.txt`](git-log-hyperize-website.txt) is the checkable
+trace: the verbatim output of
+
+```
+git log origin/main --date=iso --format='%h %ad %s' -- \
+  public/p2m/pitch-to-me.mjs src/components/WebMcp.astro \
+  netlify.toml src/pages/en/agents.astro
+```
+
+in `mingdeveloper/hyperize-website`, showing every commit that touched the
+submitted layer, the pre-existing site tools, the deploy config and the agent
+documentation page, with dates on both sides of the 2026-08-25 boundary.
